@@ -1,15 +1,12 @@
 // Generated from E:/git-space-github/funny-compiler/funny-script/src/main/java/com/lyr/source/funnyscript\FunnyScript.g4 by ANTLR 4.9
 
-package com.lyr.source.funnyscript;
+package com.lyr.source.funnyscript.parser;
 
 import org.antlr.v4.runtime.atn.*;
 import org.antlr.v4.runtime.dfa.DFA;
 import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.misc.*;
 import org.antlr.v4.runtime.tree.*;
 import java.util.List;
-import java.util.Iterator;
-import java.util.ArrayList;
 
 @SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast"})
 public class FunnyScriptParser extends Parser {

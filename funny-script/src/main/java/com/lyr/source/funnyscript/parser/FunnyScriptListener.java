@@ -1,6 +1,6 @@
 // Generated from E:/git-space-github/funny-compiler/funny-script/src/main/java/com/lyr/source/funnyscript\FunnyScript.g4 by ANTLR 4.9
 
-package com.lyr.source.funnyscript;
+package com.lyr.source.funnyscript.parser;
 
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 

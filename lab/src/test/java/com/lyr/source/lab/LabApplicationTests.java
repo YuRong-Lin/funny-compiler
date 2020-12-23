@@ -1,13 +1,13 @@
-package com.lyr.source.funnycompiler;
+package com.lyr.source.lab;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class FunnyCompilerApplicationTests {
+class LabApplicationTests {
 
-    @Test
-    void contextLoads() {
-    }
+	@Test
+	void contextLoads() {
+	}
 
 }

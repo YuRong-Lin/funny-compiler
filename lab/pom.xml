@@ -10,11 +10,10 @@
 	</parent>
 
 	<groupId>com.lyr.source</groupId>
-	<artifactId>funny-script</artifactId>
+	<artifactId>lab</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-
-	<name>funny-script</name>
-	<description>动手实现一门脚本语言</description>
+	<name>lab</name>
+	<description>手工实现简易的词法、语法解析器、antlr工具使用</description>
 
 	<properties>
 		<java.version>1.8</java.version>

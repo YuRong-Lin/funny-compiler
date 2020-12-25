@@ -13,7 +13,7 @@ import java.util.List;
 public class Function extends Scope implements FunctionType {
 
     protected Type returnType;
-    protected List<Variable> params = new LinkedList<>();
+    protected List<Variable> parameters = new LinkedList<>();
 
     protected Function(String name, Scope enclosingScope, ParserRuleContext ctx) {
         this.name = name;
@@ -28,6 +28,7 @@ public class Function extends Scope implements FunctionType {
 
     /**
      * TODO
+     *
      * @return
      */
     @Override
@@ -47,18 +48,19 @@ public class Function extends Scope implements FunctionType {
     }
 
     /**
-     * TODO
-     *
      * @param type 目标类型
      * @return
      */
     @Override
     public boolean isType(Type type) {
+        if (type instanceof FunctionType) {
+            return DefaultFunctionType.isType(this, (FunctionType) type);
+        }
         return false;
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return "Function " + name;
     }
 }

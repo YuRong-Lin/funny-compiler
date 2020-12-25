@@ -26,6 +26,6 @@ public class BlockScope extends Scope {
 
     @Override
     public String toString() {
-        return PREFIX.substring(0, 1).toUpperCase() + PREFIX.substring(1) + " " + name;
+        return "Block " + name;
     }
 }

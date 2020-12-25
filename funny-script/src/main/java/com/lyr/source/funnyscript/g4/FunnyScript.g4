@@ -74,7 +74,7 @@ memberDeclaration
     // | genericConstructorDeclaration
 //     | interfaceDeclaration
     // | annotationTypeDeclaration
-     | classDeclaration
+    | classDeclaration
     // | enumDeclaration
     ;
 

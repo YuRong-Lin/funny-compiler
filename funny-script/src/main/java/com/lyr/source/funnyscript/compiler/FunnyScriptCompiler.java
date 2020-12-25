@@ -45,6 +45,10 @@ public class FunnyScriptCompiler {
         TypeAndScopeScanner pass1 = new TypeAndScopeScanner(at);
         walker.walk(pass1, at.ast);
 
+        // pass2:
+        TypeResolver pass2 = new TypeResolver(at);
+        walker.walk(pass2, at.ast);
+
         //打印AST
         if (verbose || ast_dump) {
             dumpAST();
@@ -79,6 +83,7 @@ public class FunnyScriptCompiler {
     public static void main(String[] args) {
         String script =
                 "class A { " +
+                "   int a;" +
                 "   int foo() {" +
                 "       fun(); " +
                 "       return 1;" +

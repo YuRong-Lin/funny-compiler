@@ -77,9 +77,64 @@ public class FunnyScriptCompiler {
     }
 
     public static void main(String[] args) {
-        String script = "class A { int foo() {fun(); return 1;} void fun() {}} A a = A();a.foo();";
+        String script =
+                "class A { " +
+                "   int foo() {" +
+                "       fun(); " +
+                "       return 1;" +
+                "   }" +
+                "   void fun() {}" +
+                "}" +
+                "A a = A();" +
+                "a.foo();";
 
         FunnyScriptCompiler compiler = new FunnyScriptCompiler();
         compiler.compile(script, true, true);
+
+        /**
+         * log .eg:
+         * (prog
+         * 	(blockStatements
+         * 		(blockStatement
+         * 			(classDeclaration class A
+         * 				(classBody {
+         * 					(classBodyDeclaration
+         * 						(memberDeclaration
+         * 							(functionDeclaration
+         * 								(typeTypeOrVoid (typeType (primitiveType int))) foo (formalParameters ( ))
+         * 								(functionBody
+         * 									(block {
+         * 										(blockStatements
+         * 											(blockStatement (statement (expression (functionCall fun ( ))) ;))
+         * 											(blockStatement (statement return (expression (primary (literal (integerLiteral 1)))) ;))
+         * 										)
+         *                                                                        })
+         * 								)
+         * 							)
+         * 						)
+         * 					)
+         * 					(classBodyDeclaration
+         * 						(memberDeclaration
+         * 							(functionDeclaration
+         * 								(typeTypeOrVoid void) fun (formalParameters ( ))
+         * 								(functionBody
+         * 									(block { blockStatements })
+         * 								)
+         * 							)
+         * 						)
+         * 					)
+         * 				})
+         * 			)
+         * 		)
+         * 		(blockStatement
+         * 			(variableDeclarators (typeType (classOrInterfaceType A))
+         * 				(variableDeclarator (variableDeclaratorId a) = (variableInitializer (expression (functionCall A ( )))))) ;
+         * 		)
+         * 		(blockStatement
+         * 			(statement (expression (expression (primary a)) . (functionCall foo ( ))) ;)
+         * 		)
+         * 	)
+         * )
+         */
     }
 }

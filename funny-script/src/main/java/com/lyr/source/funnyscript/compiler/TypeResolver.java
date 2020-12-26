@@ -5,6 +5,13 @@ import com.lyr.source.funnyscript.parser.FunnyScriptParser;
 
 /**
  * 第二遍扫描。把变量、类继承、函数声明的类型都解析出来。
+ * 也就是所有用到typeType的地方。
+ *
+ * 注：
+ * 实际运行时，把变量添加到符号表，是分两步来做的。
+ * 第一步，是把类成员变量和函数的参数加进去
+ *
+ * 第二步，是在变量引用消解的时候再添加。这个时候是边Enter符号表，边消解，会避免变量引用到错误的定义。
  *
  * @Author LinYuRong
  * @Date 2020/12/25 10:43
@@ -40,7 +47,8 @@ public class TypeResolver extends FunnyScriptBaseListener {
     }
 
     /**
-     * 将类成员的变量加入符号表
+     * 1、将类成员的变量加入符号表
+     * 2、将其他变量加入到符号表（TODO）
      *
      * @param ctx
      */
@@ -61,6 +69,21 @@ public class TypeResolver extends FunnyScriptBaseListener {
         }
     }
 
+    @Override
+    public void exitTypeType(FunnyScriptParser.TypeTypeContext ctx) {
+        // 冒泡，将下级的属性标注在本级
+        if (ctx.classOrInterfaceType() != null) {
+            Type type = at.typeOfNode.get(ctx.classOrInterfaceType());
+            at.typeOfNode.put(ctx, type);
+        } else if (ctx.functionType() != null) {
+            Type type = at.typeOfNode.get(ctx.functionType());
+            at.typeOfNode.put(ctx, type);
+        } else if (ctx.primitiveType() != null) {
+            Type type = at.typeOfNode.get(ctx.primitiveType());
+            at.typeOfNode.put(ctx, type);
+        }
+    }
+
     /**
      * 设置函数的参数的类型，这些参数已经在enterVariableDeclaratorId中作为变量声明了，现在设置它们的类型
      *
@@ -75,6 +98,7 @@ public class TypeResolver extends FunnyScriptBaseListener {
 
         // 添加到函数的参数列表里
         Scope scope = at.enclosingScopeOfNode(ctx);
+        //TODO 从目前的语法来看，只有function才会使用FormalParameter
         if (scope instanceof Function) {
             ((Function) scope).parameters.add(variable);
         }
@@ -92,21 +116,6 @@ public class TypeResolver extends FunnyScriptBaseListener {
             String idName = ctx.getText();
             Class theClass = at.lookupClass(scope, idName);
             at.typeOfNode.put(ctx, theClass);
-        }
-    }
-
-    @Override
-    public void exitTypeType(FunnyScriptParser.TypeTypeContext ctx) {
-        // 冒泡，将下级的属性标注在本级
-        if (ctx.classOrInterfaceType() != null) {
-            Type type = at.typeOfNode.get(ctx.classOrInterfaceType());
-            at.typeOfNode.put(ctx, type);
-        } else if (ctx.functionType() != null) {
-            Type type = at.typeOfNode.get(ctx.functionType());
-            at.typeOfNode.put(ctx, type);
-        } else if (ctx.primitiveType() != null) {
-            Type type = at.typeOfNode.get(ctx.primitiveType());
-            at.typeOfNode.put(ctx, type);
         }
     }
 

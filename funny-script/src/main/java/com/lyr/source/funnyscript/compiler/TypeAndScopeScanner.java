@@ -8,13 +8,16 @@ import java.util.Stack;
 
 /**
  * 第一遍扫描：识别出所有类型（包括类和函数)，以及Scope。
- * （但函数的参数信息要等到下一个阶段才会添加进去。） TODO：如何理解？
+ * 注：
+ *  1、但函数的参数信息要等到下一个阶段才会添加进去。
+ *  2、函数作为一等公民，支持变量声明、赋值、参数传递等
  *
  * @Author LinYuRong
  * @Date 2020/12/24 15:49
  * @Version 1.0
  */
 public class TypeAndScopeScanner extends FunnyScriptBaseListener {
+    // 注释树，保存语义分析的结果
     private AnnotatedTree at;
 
     private Stack<Scope> scopeStack = new Stack<>();
@@ -24,7 +27,7 @@ public class TypeAndScopeScanner extends FunnyScriptBaseListener {
     }
 
     /**
-     * 遍历AST过程中，当前的Score
+     * 遍历AST过程中，当前的Scope
      *
      * @return
      */
@@ -44,6 +47,14 @@ public class TypeAndScopeScanner extends FunnyScriptBaseListener {
         return scopeStack.pop();
     }
 
+    /**
+     * 1、建立节点跟作用域的对应关系
+     * 2、通过栈构建scope树结构
+     *
+     * @param scope 所在作用域
+     * @param ctx AST节点
+     * @return
+     */
     private Scope pushScope(Scope scope, ParserRuleContext ctx) {
         at.node2Scope.put(ctx, scope);
         scope.ctx = ctx;
@@ -53,7 +64,7 @@ public class TypeAndScopeScanner extends FunnyScriptBaseListener {
     }
 
     /**
-     * AST的根
+     * AST的根(程序入口)
      *
      * @param ctx
      */
@@ -131,7 +142,8 @@ public class TypeAndScopeScanner extends FunnyScriptBaseListener {
         at.types.add(theClass);
 
         if (at.lookupClass(currentScope(), idName) != null) {
-            at.log("duplicate class name:" + idName, ctx); // 只是报警，但仍然继续解析
+            // 只是报警，但仍然继续解析
+            at.log("duplicate class name:" + idName, ctx);
         }
 
         currentScope().addSymbol(theClass);

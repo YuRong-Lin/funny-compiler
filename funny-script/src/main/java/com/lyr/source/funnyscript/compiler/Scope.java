@@ -20,8 +20,10 @@ public abstract class Scope extends Symbol {
      * @param symbol
      */
     protected void addSymbol(Symbol symbol) {
-        symbols.add(symbol);
-        symbol.enclosingScope = this;
+        if (symbol != null) {
+            symbols.add(symbol);
+            symbol.enclosingScope = this;
+        }
     }
 
     /**

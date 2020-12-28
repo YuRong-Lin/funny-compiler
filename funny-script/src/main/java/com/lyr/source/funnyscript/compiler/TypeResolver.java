@@ -66,6 +66,7 @@ public class TypeResolver extends FunnyScriptBaseListener {
         Scope scope = at.enclosingScopeOfNode(ctx);
 
         // 第一步只把类的成员变量入符号表。在变量消解(第三步)时，再把本地变量加入符号表，一边Enter，一边消解。
+        // 理解：本地变量有可能依赖全局变量或类成员变量，故分步处理
         if (scope instanceof Class || ctx.parent instanceof FunnyScriptParser.FormalParameterContext || enterLocalVariable) {
             Variable variable = new Variable(idName, scope, ctx);
 

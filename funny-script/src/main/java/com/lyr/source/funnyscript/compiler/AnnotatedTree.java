@@ -1,6 +1,8 @@
 package com.lyr.source.funnyscript.compiler;
 
+import com.lyr.source.funnyscript.parser.FunnyScriptParser;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 
 import java.util.HashMap;
@@ -101,6 +103,45 @@ public class AnnotatedTree {
     }
 
     /**
+     * 通过名称查找Variable。逐级Scope查找。
+     *
+     * @param scope
+     * @param idName
+     * @return
+     */
+    protected Variable lookupVariable(Scope scope, String idName) {
+        Variable rtn = scope.getVariable(idName);
+
+        if (rtn == null && scope.enclosingScope != null) {
+            rtn = lookupVariable(scope.enclosingScope, idName);
+        }
+        return rtn;
+    }
+
+    /**
+     * 逐级查找函数（或方法）。仅通过名字查找。如果有重名的，返回第一个就算了。
+     * TODO 未来应该报警？？
+     *
+     * @param scope
+     * @param name
+     * @return
+     */
+    protected Function lookupFunction(Scope scope, String name) {
+        Function rtn = null;
+        if (scope instanceof Class) {
+            rtn = getMethodOnlyByName((Class) scope, name);
+        } else {
+            rtn = getFunctionOnlyByName(scope, name);
+        }
+
+        if (rtn == null && scope.enclosingScope != null) {
+            rtn = lookupFunction(scope.enclosingScope, name);
+        }
+
+        return rtn;
+    }
+
+    /**
      * 查找某节点所在的Scope
      * 算法：逐级查找父节点，找到一个对应着Scope的上级节点
      *
@@ -120,6 +161,20 @@ public class AnnotatedTree {
     }
 
     /**
+     * 包含某节点的类
+     *
+     * @param ctx
+     * @return
+     */
+    public Class enclosingClassOfNode(RuleContext ctx) {
+        if (ctx.parent instanceof FunnyScriptParser.ClassDeclarationContext) {
+            return (Class) node2Scope.get(ctx.parent);
+        } else if (ctx.parent == null) {
+            return null;
+        } else return enclosingClassOfNode(ctx.parent);
+    }
+
+    /**
      * 输出本Scope中的内容，包括每个变量的名称、类型。
      *
      * @return 树状显示的字符串
@@ -128,6 +183,26 @@ public class AnnotatedTree {
         StringBuffer sb = new StringBuffer();
         scopeToString(sb, nameSpace, "");
         return sb.toString();
+    }
+
+    //对于类，需要连父类也查找
+    private Function getMethodOnlyByName(Class theClass, String name) {
+        Function rtn = getFunctionOnlyByName(theClass, name);
+
+        if (rtn == null && theClass.getParentClass() != null) {
+            rtn = getMethodOnlyByName(theClass.getParentClass(), name);
+        }
+
+        return rtn;
+    }
+
+    private Function getFunctionOnlyByName(Scope scope, String name) {
+        for (Symbol s : scope.symbols) {
+            if (s instanceof Function && s.name.equals(name)) {
+                return (Function) s;
+            }
+        }
+        return null;
     }
 
     private void scopeToString(StringBuffer sb, Scope scope, String indent) {

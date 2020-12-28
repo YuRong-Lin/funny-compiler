@@ -49,6 +49,11 @@ public class FunnyScriptCompiler {
         TypeResolver pass2 = new TypeResolver(at);
         walker.walk(pass2, at.ast);
 
+        // pass3: pass3：消解有的变量应用、函数引用。另外还做了类型的推断。
+        RefResolver pass3 = new RefResolver(at);
+        walker.walk(pass3, at.ast);
+
+
         //打印AST
         if (verbose || ast_dump) {
             dumpAST();
@@ -93,6 +98,7 @@ public class FunnyScriptCompiler {
                         "\n" +
                         "  //方法\n" +
                         "  void speak(){\n" +
+                        "    int a = 1;" +
                         "    println(\"mammal \" + name +\" speaking...\");\n" +
                         "  }\n" +
                         "}\n" +
@@ -176,7 +182,7 @@ public class FunnyScriptCompiler {
          * 							)
          * 						)
          * 					)
-         * 				})
+         *                })
          * 			)
          * 		)
          * 		(blockStatement

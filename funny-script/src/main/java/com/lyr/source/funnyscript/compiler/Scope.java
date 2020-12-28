@@ -55,6 +55,13 @@ public abstract class Scope extends Symbol {
         return getVariable(this, name);
     }
 
+    /**
+     * 获取当前作用域下的变量
+     *
+     * @param scope
+     * @param name
+     * @return null if not exists
+     */
     protected static Variable getVariable(Scope scope, String name) {
         for (Symbol s : scope.symbols) {
             if (s instanceof Variable && s.name.equals(name)) {

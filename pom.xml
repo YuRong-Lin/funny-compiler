@@ -26,6 +26,7 @@
     <properties>
         <java.version>1.8</java.version>
         <antlr.version>4.9</antlr.version>
+        <script.version>0.0.1-SNAPSHOT</script.version>
     </properties>
 
     <dependencyManagement>
@@ -33,17 +34,17 @@
             <dependency>
                 <groupId>com.lyr.source</groupId>
                 <artifactId>web</artifactId>
-                <version>0.0.1-SNAPSHOT</version>
+                <version>${script.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lyr.source</groupId>
                 <artifactId>funny-script</artifactId>
-                <version>0.0.1-SNAPSHOT</version>
+                <version>${script.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.lyr.source</groupId>
                 <artifactId>lab</artifactId>
-                <version>0.0.1-SNAPSHOT</version>
+                <version>${script.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.antlr</groupId>

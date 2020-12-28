@@ -45,7 +45,7 @@ public class FunnyScriptCompiler {
         TypeAndScopeScanner pass1 = new TypeAndScopeScanner(at);
         walker.walk(pass1, at.ast);
 
-        // pass2:
+        // pass2: 把变量、类继承、函数声明的类型都解析出来。也就是所有声明时用到类型的地方。
         TypeResolver pass2 = new TypeResolver(at);
         walker.walk(pass2, at.ast);
 
@@ -82,37 +82,81 @@ public class FunnyScriptCompiler {
 
     public static void main(String[] args) {
         String script =
-                "class A { " +
-                "   int a;" +
-                "   int foo() {" +
-                "       fun(); " +
-                "       return 1;" +
-                "   }" +
-                "   void fun() {}" +
-                "}" +
-                "A a = A();" +
-                "a.foo();";
+                "class Mammal{\n" +
+                        "  //类属性\n" +
+                        "  string name = \"\";\n" +
+                        "\n" +
+                        "  //构造方法\n" +
+                        "  Mammal(string str){\n" +
+                        "    name = str;\n" +
+                        "  }\n" +
+                        "\n" +
+                        "  //方法\n" +
+                        "  void speak(){\n" +
+                        "    println(\"mammal \" + name +\" speaking...\");\n" +
+                        "  }\n" +
+                        "}\n" +
+                        "\n" +
+                        "Mammal mammal = Mammal(\"dog\");           //playscript特别的构造方法，不需要用new关键字。\n" +
+                        "mammal.speak();                          //访问对象方法\n" +
+                        "println(\"mammal.name = \" + mammal.name); //访问对象的属性";
 
         FunnyScriptCompiler compiler = new FunnyScriptCompiler();
         compiler.compile(script, true, true);
 
         /**
-         * log .eg:
+         * AST.eg:
+         * 1、
          * (prog
          * 	(blockStatements
          * 		(blockStatement
-         * 			(classDeclaration class A
+         * 			(variableDeclarators (typeType (primitiveType int))
+         * 				(variableDeclarator (variableDeclaratorId i) = (variableInitializer (expression (primary (literal (integerLiteral 0))))))
+         * 			) ;
+         * 		)
+         * 		(blockStatement
+         * 			(statement (expression (functionCall println ( (expressionList (expression (primary i))) ))) ;)
+         * 		)
+         * 		(blockStatement
+         * 			(statement
+         * 				(block {
+         * 					(blockStatements
+         * 						(blockStatement (statement (expression (expression (primary i)) = (expression (primary (literal (integerLiteral 2))))) ;))
+         * 						(blockStatement (statement (expression (functionCall println ( (expressionList (expression (primary i))) ))) ;))
+         * 						(blockStatement (variableDeclarators (typeType (primitiveType int)) (variableDeclarator (variableDeclaratorId i) = (variableInitializer (expression (primary (literal (integerLiteral 3))))))) ;) (blockStatement (statement (expression (functionCall println ( (expressionList (expression (primary i))) ))) ;))
+         * 					)
+         *              })
+         * 			)
+         * 		)
+         * 		(blockStatement (statement (expression (functionCall println ( (expressionList (expression (primary i))) ))) ;)))
+         * )
+         *
+         * 2、
+         * (prog
+         * 	(blockStatements
+         * 		(blockStatement
+         * 			(classDeclaration class Mammal
          * 				(classBody {
          * 					(classBodyDeclaration
          * 						(memberDeclaration
-         * 							(functionDeclaration
-         * 								(typeTypeOrVoid (typeType (primitiveType int))) foo (formalParameters ( ))
+         * 							(fieldDeclaration
+         * 								(variableDeclarators (typeType (primitiveType string)) (variableDeclarator (variableDeclaratorId name) = (variableInitializer (expression (primary (literal "")))))) ;
+         * 							)
+         * 						)
+         * 					)
+         * 					(classBodyDeclaration
+         * 						(memberDeclaration
+         * 							(functionDeclaration Mammal
+         * 								(formalParameters
+         * 									(
+         * 										(formalParameterList
+         * 											(formalParameter (typeType (primitiveType string)) (variableDeclaratorId str)))
+         * 									)
+         * 								)
          * 								(functionBody
          * 									(block {
          * 										(blockStatements
-         * 											(blockStatement (statement (expression (functionCall fun ( ))) ;))
-         * 											(blockStatement (statement return (expression (primary (literal (integerLiteral 1)))) ;))
-         * 										)
+         * 											(blockStatement (statement (expression (expression (primary name)) = (expression (primary str))) ;)))
          *                                                                        })
          * 								)
          * 							)
@@ -121,9 +165,13 @@ public class FunnyScriptCompiler {
          * 					(classBodyDeclaration
          * 						(memberDeclaration
          * 							(functionDeclaration
-         * 								(typeTypeOrVoid void) fun (formalParameters ( ))
+         * 								(typeTypeOrVoid void) speak (formalParameters ( ))
          * 								(functionBody
-         * 									(block { blockStatements })
+         * 									(block {
+         * 										(blockStatements
+         * 											(blockStatement (statement (expression (functionCall println ( (expressionList (expression (expression (expression (primary (literal "mammal "))) + (expression (primary name))) + (expression (primary (literal " speaking..."))))) ))) ;))
+         * 										)
+         *                                    })
          * 								)
          * 							)
          * 						)
@@ -132,12 +180,12 @@ public class FunnyScriptCompiler {
          * 			)
          * 		)
          * 		(blockStatement
-         * 			(variableDeclarators (typeType (classOrInterfaceType A))
-         * 				(variableDeclarator (variableDeclaratorId a) = (variableInitializer (expression (functionCall A ( )))))) ;
-         * 		)
+         * 			(variableDeclarators
+         * 				(typeType (classOrInterfaceType Mammal)) (variableDeclarator (variableDeclaratorId mammal) = (variableInitializer (expression (functionCall Mammal ( (expressionList (expression (primary (literal "dog")))) )))))) ;)
          * 		(blockStatement
-         * 			(statement (expression (expression (primary a)) . (functionCall foo ( ))) ;)
-         * 		)
+         * 			(statement (expression (expression (primary mammal)) . (functionCall speak ( ))) ;))
+         * 		(blockStatement
+         * 			(statement (expression (functionCall println ( (expressionList (expression (expression (primary (literal "mammal.name = "))) + (expression (expression (primary mammal)) . name))) ))) ;))
          * 	)
          * )
          */

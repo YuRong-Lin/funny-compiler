@@ -21,12 +21,20 @@ public class TypeResolver extends FunnyScriptBaseListener {
 
     private AnnotatedTree at;
 
+    // 是否把本地变量加入符号表
+    private boolean enterLocalVariable = false;
+
     protected TypeResolver(AnnotatedTree at) {
         this.at = at;
     }
 
+    protected TypeResolver(AnnotatedTree at, boolean enterLocalVariable) {
+        this(at);
+        this.enterLocalVariable = enterLocalVariable;
+    }
+
     /**
-     * 设置父类
+     * 设置父类(解析extends)
      *
      * @param ctx
      */
@@ -47,8 +55,8 @@ public class TypeResolver extends FunnyScriptBaseListener {
     }
 
     /**
-     * 1、将类成员的变量加入符号表
-     * 2、将其他变量加入到符号表（TODO）
+     * 1、将类成员的变量和函数参数加入符号表
+     * 2、将本地变量加入到符号表
      *
      * @param ctx
      */
@@ -57,7 +65,8 @@ public class TypeResolver extends FunnyScriptBaseListener {
         String idName = ctx.IDENTIFIER().getText();
         Scope scope = at.enclosingScopeOfNode(ctx);
 
-        if (scope instanceof Class) {
+        // 第一步只把类的成员变量入符号表。在变量消解(第三步)时，再把本地变量加入符号表，一边Enter，一边消解。
+        if (scope instanceof Class || ctx.parent instanceof FunnyScriptParser.FormalParameterContext || enterLocalVariable) {
             Variable variable = new Variable(idName, scope, ctx);
 
             if (Scope.getVariable(scope, idName) != null) {
@@ -66,41 +75,6 @@ public class TypeResolver extends FunnyScriptBaseListener {
 
             scope.addSymbol(variable);
             at.symbolOfNode.put(ctx, variable);
-        }
-    }
-
-    @Override
-    public void exitTypeType(FunnyScriptParser.TypeTypeContext ctx) {
-        // 冒泡，将下级的属性标注在本级
-        if (ctx.classOrInterfaceType() != null) {
-            Type type = at.typeOfNode.get(ctx.classOrInterfaceType());
-            at.typeOfNode.put(ctx, type);
-        } else if (ctx.functionType() != null) {
-            Type type = at.typeOfNode.get(ctx.functionType());
-            at.typeOfNode.put(ctx, type);
-        } else if (ctx.primitiveType() != null) {
-            Type type = at.typeOfNode.get(ctx.primitiveType());
-            at.typeOfNode.put(ctx, type);
-        }
-    }
-
-    /**
-     * 设置函数的参数的类型，这些参数已经在enterVariableDeclaratorId中作为变量声明了，现在设置它们的类型
-     *
-     * @param ctx
-     */
-    @Override
-    public void exitFormalParameter(FunnyScriptParser.FormalParameterContext ctx) {
-        // 设置参数类型
-        Type type = at.typeOfNode.get(ctx.typeType());
-        Variable variable = (Variable) at.symbolOfNode.get(ctx.variableDeclaratorId());
-        variable.type = type;
-
-        // 添加到函数的参数列表里
-        Scope scope = at.enclosingScopeOfNode(ctx);
-        //TODO 从目前的语法来看，只有function才会使用FormalParameter
-        if (scope instanceof Function) {
-            ((Function) scope).parameters.add(variable);
         }
     }
 
@@ -116,82 +90,6 @@ public class TypeResolver extends FunnyScriptBaseListener {
             String idName = ctx.getText();
             Class theClass = at.lookupClass(scope, idName);
             at.typeOfNode.put(ctx, theClass);
-        }
-    }
-
-    /**
-     * 设置声明的变量的类型
-     *
-     * @param ctx
-     */
-    @Override
-    public void exitVariableDeclarators(FunnyScriptParser.VariableDeclaratorsContext ctx) {
-        Scope scope = at.enclosingScopeOfNode(ctx);
-
-        if (scope instanceof Class) {
-            // 设置变量类型
-            Type type = at.typeOfNode.get(ctx.typeType());
-
-            for (FunnyScriptParser.VariableDeclaratorContext child : ctx.variableDeclarator()) {
-                Variable variable = (Variable) at.symbolOfNode.get(child.variableDeclaratorId());
-                variable.type = type;
-            }
-        }
-    }
-
-    @Override
-    public void exitTypeTypeOrVoid(FunnyScriptParser.TypeTypeOrVoidContext ctx) {
-        if (ctx.VOID() != null) {
-            at.typeOfNode.put(ctx, VoidType.instance());
-        } else if (ctx.typeType() != null) {
-            at.typeOfNode.put(ctx, at.typeOfNode.get(ctx.typeType()));
-        }
-    }
-
-    /**
-     * 设置函数的返回类型及查重
-     *
-     * @param ctx
-     */
-    @Override
-    public void exitFunctionDeclaration(FunnyScriptParser.FunctionDeclarationContext ctx) {
-        Function function = (Function) at.node2Scope.get(ctx);
-        if (ctx.typeTypeOrVoid() != null) {
-            function.returnType = at.typeOfNode.get(ctx.typeTypeOrVoid());
-        } else {
-            // TODO 如果是类的构建函数，返回值应该是一个类吧？
-        }
-
-        // 函数查重，检查名称和参数（这个时候参数已经齐了）
-        Scope scope = at.enclosingScopeOfNode(ctx);
-        Function found = Scope.getFunction(scope, function.name, function.getParamTypes());
-        if (found != null && found != function) {
-            at.log("Function or method already Declared: " + ctx.getText(), ctx);
-        }
-    }
-
-    /**
-     * 函数类型
-     *
-     * @param ctx
-     */
-    @Override
-    public void exitFunctionType(FunnyScriptParser.FunctionTypeContext ctx) {
-        DefaultFunctionType functionType = new DefaultFunctionType();
-        at.types.add(functionType);
-
-        at.typeOfNode.put(ctx, functionType);
-
-        // 返回值类型
-        functionType.returnType = at.typeOfNode.get(ctx.typeTypeOrVoid());
-
-        // 参数的类型
-        if (ctx.typeList() != null) {
-            FunnyScriptParser.TypeListContext tcl = ctx.typeList();
-            for (FunnyScriptParser.TypeTypeContext ttc : tcl.typeType()) {
-                Type type = at.typeOfNode.get(ttc);
-                functionType.paramTypes.add(type);
-            }
         }
     }
 
@@ -223,5 +121,116 @@ public class TypeResolver extends FunnyScriptBaseListener {
             type = PrimitiveType.String;
         }
         at.typeOfNode.put(ctx, type);
+    }
+
+    @Override
+    public void exitTypeType(FunnyScriptParser.TypeTypeContext ctx) {
+        // 冒泡，将下级的属性标注在本级
+        if (ctx.classOrInterfaceType() != null) {
+            Type type = at.typeOfNode.get(ctx.classOrInterfaceType());
+            at.typeOfNode.put(ctx, type);
+        } else if (ctx.functionType() != null) {
+            Type type = at.typeOfNode.get(ctx.functionType());
+            at.typeOfNode.put(ctx, type);
+        } else if (ctx.primitiveType() != null) {
+            Type type = at.typeOfNode.get(ctx.primitiveType());
+            at.typeOfNode.put(ctx, type);
+        }
+    }
+
+    @Override
+    public void exitTypeTypeOrVoid(FunnyScriptParser.TypeTypeOrVoidContext ctx) {
+        if (ctx.VOID() != null) {
+            at.typeOfNode.put(ctx, VoidType.instance());
+        } else if (ctx.typeType() != null) {
+            at.typeOfNode.put(ctx, at.typeOfNode.get(ctx.typeType()));
+        }
+    }
+
+    /**
+     * 函数类型
+     *
+     * @param ctx
+     */
+    @Override
+    public void exitFunctionType(FunnyScriptParser.FunctionTypeContext ctx) {
+        DefaultFunctionType functionType = new DefaultFunctionType();
+        at.types.add(functionType);
+
+        at.typeOfNode.put(ctx, functionType);
+
+        // 返回值类型
+        functionType.returnType = at.typeOfNode.get(ctx.typeTypeOrVoid());
+
+        // 参数的类型
+        if (ctx.typeList() != null) {
+            FunnyScriptParser.TypeListContext tcl = ctx.typeList();
+            for (FunnyScriptParser.TypeTypeContext ttc : tcl.typeType()) {
+                Type type = at.typeOfNode.get(ttc);
+                functionType.paramTypes.add(type);
+            }
+        }
+    }
+
+    /**
+     * 设置函数的参数的类型，这些参数已经在enterVariableDeclaratorId中作为变量声明了，现在设置它们的类型
+     *
+     * @param ctx
+     */
+    @Override
+    public void exitFormalParameter(FunnyScriptParser.FormalParameterContext ctx) {
+        // 设置参数类型
+        Type type = at.typeOfNode.get(ctx.typeType());
+        Variable variable = (Variable) at.symbolOfNode.get(ctx.variableDeclaratorId());
+        variable.type = type;
+
+        // 添加到函数的参数列表里
+        Scope scope = at.enclosingScopeOfNode(ctx);
+        //TODO 从目前的语法来看，只有function才会使用FormalParameter
+        if (scope instanceof Function) {
+            ((Function) scope).parameters.add(variable);
+        }
+    }
+
+    /**
+     * 设置声明的变量的类型
+     *
+     * @param ctx
+     */
+    @Override
+    public void exitVariableDeclarators(FunnyScriptParser.VariableDeclaratorsContext ctx) {
+        Scope scope = at.enclosingScopeOfNode(ctx);
+
+        if (scope instanceof Class || enterLocalVariable) {
+            // 设置变量类型
+            Type type = at.typeOfNode.get(ctx.typeType());
+
+            for (FunnyScriptParser.VariableDeclaratorContext child : ctx.variableDeclarator()) {
+                Variable variable = (Variable) at.symbolOfNode.get(child.variableDeclaratorId());
+                variable.type = type;
+            }
+        }
+    }
+
+    /**
+     * 设置函数的返回类型及查重
+     *
+     * @param ctx
+     */
+    @Override
+    public void exitFunctionDeclaration(FunnyScriptParser.FunctionDeclarationContext ctx) {
+        Function function = (Function) at.node2Scope.get(ctx);
+        if (ctx.typeTypeOrVoid() != null) {
+            function.returnType = at.typeOfNode.get(ctx.typeTypeOrVoid());
+        } else {
+            // TODO 如果是类的构建函数，返回值应该是一个类吧？
+        }
+
+        // 函数查重，检查名称和参数（这个时候参数已经齐了）
+        Scope scope = at.enclosingScopeOfNode(ctx);
+        Function found = Scope.getFunction(scope, function.name, function.getParamTypes());
+        if (found != null && found != function) {
+            at.log("Function or method already Declared: " + ctx.getText(), ctx);
+        }
     }
 }

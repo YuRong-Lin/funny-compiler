@@ -239,6 +239,20 @@ public class AnnotatedTree {
         return sb.toString();
     }
 
+    /**
+     * 是否有编译错误
+     *
+     * @return
+     */
+    protected boolean hasCompilationError() {
+        for (CompilationLog log : logs) {
+            if (log.type == CompilationLog.ERROR) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     //对于类，需要连父类也查找
     private Function getMethodOnlyByName(Class theClass, String name) {
         Function rtn = getFunctionOnlyByName(theClass, name);

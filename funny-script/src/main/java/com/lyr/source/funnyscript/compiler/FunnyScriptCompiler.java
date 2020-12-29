@@ -78,6 +78,12 @@ public class FunnyScriptCompiler {
         return at;
     }
 
+    public Object execute(AnnotatedTree at) {
+        ASTEvaluator visitor = new ASTEvaluator(at);
+        Object result = visitor.visit(at.ast);
+        return result;
+    }
+
     /**
      * 打印AST，以lisp格式
      */

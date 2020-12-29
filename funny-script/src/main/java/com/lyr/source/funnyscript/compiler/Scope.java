@@ -130,4 +130,14 @@ public abstract class Scope extends Symbol {
         }
         return rtn;
     }
+
+    /**
+     * 是否包含某个Symbol
+     *
+     * @param symbol
+     * @return
+     */
+    protected boolean containsSymbol(Symbol symbol) {
+        return symbols.contains(symbol);
+    }
 }

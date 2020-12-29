@@ -53,6 +53,9 @@ public class FunnyScriptCompiler {
         RefResolver pass3 = new RefResolver(at);
         walker.walk(pass3, at.ast);
 
+        // pass4: 类型检查
+        TypeChecker pass4 = new TypeChecker(at);
+        walker.walk(pass4, at.ast);
 
         //打印AST
         if (verbose || ast_dump) {

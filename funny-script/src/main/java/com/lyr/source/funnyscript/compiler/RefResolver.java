@@ -46,8 +46,8 @@ public class RefResolver extends FunnyScriptBaseListener {
     @Override
     public void enterVariableDeclarators(FunnyScriptParser.VariableDeclaratorsContext ctx) {
         Scope scope = at.enclosingScopeOfNode(ctx);
-        // TODO 函数本地变量？？
-        if (scope instanceof BlockScope) {
+        // 本地变量应该包括函数和块
+        if (scope instanceof BlockScope || scope instanceof Function) {
             typeResolverWalker.walk(typeResolver, ctx);
         }
     }

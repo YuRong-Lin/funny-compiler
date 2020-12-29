@@ -61,6 +61,10 @@ public class FunnyScriptCompiler {
         SemanticValidator pass5 = new SemanticValidator(at);
         walker.walk(pass5, at.ast);
 
+        // pass6: 闭包分析
+        ClosureAnalyzer closureAnalyzer = new ClosureAnalyzer(at);
+        closureAnalyzer.analyzeClosures();
+
         //打印AST
         if (verbose || ast_dump) {
             dumpAST();
@@ -89,6 +93,17 @@ public class FunnyScriptCompiler {
     public void dumpSymbols() {
         if (at != null) {
             System.out.println(at.getScopeTreeString());
+        }
+    }
+
+    /**
+     * 输出编译信息
+     */
+    public void dumpCompilationLogs() {
+        if (at != null) {
+            for (CompilationLog log : at.logs) {
+                System.out.println(log);
+            }
         }
     }
 

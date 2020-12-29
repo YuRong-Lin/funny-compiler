@@ -4,6 +4,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @Author LinYuRong
@@ -15,6 +16,8 @@ public class Function extends Scope implements FunctionType {
     protected Type returnType;
     protected List<Variable> parameters = new LinkedList<>();
     private List<Type> paramTypes;
+    // 闭包变量，即它所引用的外部环境变量
+    protected Set<Variable> closureVariables;
 
     protected Function(String name, Scope enclosingScope, ParserRuleContext ctx) {
         this.name = name;

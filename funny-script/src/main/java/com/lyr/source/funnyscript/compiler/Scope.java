@@ -104,4 +104,30 @@ public abstract class Scope extends Symbol {
 
         return rtn;
     }
+
+    /**
+     * 获取一个函数类型的变量，能匹配相应的参数类型
+     *
+     * @param name
+     * @param paramTypes
+     * @return
+     */
+    protected Variable getFunctionVariable(String name, List<Type> paramTypes) {
+        return getFunctionVariable(this, name, paramTypes);
+    }
+
+    protected static Variable getFunctionVariable(Scope scope, String name, List<Type> paramTypes) {
+        Variable rtn = null;
+        for (Symbol s : scope.symbols) {
+            if (s instanceof Variable && ((Variable) s).type instanceof FunctionType && s.name.equals(name)) {
+                Variable v = (Variable) s;
+                FunctionType functionType = (FunctionType) v.type;
+                if (functionType.matchParameterTypes(paramTypes)) {
+                    rtn = v;
+                    break;
+                }
+            }
+        }
+        return rtn;
+    }
 }

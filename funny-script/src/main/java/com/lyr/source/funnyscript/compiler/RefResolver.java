@@ -4,6 +4,9 @@ import com.lyr.source.funnyscript.parser.FunnyScriptBaseListener;
 import com.lyr.source.funnyscript.parser.FunnyScriptParser;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
+import java.util.LinkedList;
+import java.util.List;
+
 /**
  * 语义解析的第三步：引用消解和类型推断
  * 1.解析所有的本地变量引用、函数调用和类成员引用。
@@ -26,9 +29,27 @@ public class RefResolver extends FunnyScriptBaseListener {
     private ParseTreeWalker typeResolverWalker = new ParseTreeWalker();
     private TypeResolver typeResolver;
 
+    // this()和super()构造函数留到最后去消解，因为它可能引用别的构造函数，必须等这些构造函数都消解完。
+    private List<FunnyScriptParser.FunctionCallContext> thisConstructorList = new LinkedList<>();
+    private List<FunnyScriptParser.FunctionCallContext> superConstructorList = new LinkedList<>();
+
     protected RefResolver(AnnotatedTree at) {
         this.at = at;
         this.typeResolver = new TypeResolver(at, true);
+    }
+
+    /**
+     * 把本地变量加到符号表。本地变量必须是边添加，边解析，不能先添加后解析，否则会引起引用消解的错误。
+     *
+     * @param ctx
+     */
+    @Override
+    public void enterVariableDeclarators(FunnyScriptParser.VariableDeclaratorsContext ctx) {
+        Scope scope = at.enclosingScopeOfNode(ctx);
+        // TODO 函数本地变量？？
+        if (scope instanceof BlockScope) {
+            typeResolverWalker.walk(typeResolver, ctx);
+        }
     }
 
     /**
@@ -203,18 +224,241 @@ public class RefResolver extends FunnyScriptBaseListener {
     }
 
     /**
-     * 把本地变量加到符号表。本地变量必须是边添加，边解析，不能先添加后解析，否则会引起引用消解的错误。
+     * 对变量初始化部分也做一下类型推断
      *
      * @param ctx
      */
     @Override
-    public void enterVariableDeclarators(FunnyScriptParser.VariableDeclaratorsContext ctx) {
-        Scope scope = at.enclosingScopeOfNode(ctx);
-        // TODO 函数本地变量？？
-        if (scope instanceof BlockScope) {
-            typeResolverWalker.walk(typeResolver, ctx);
+    public void exitVariableInitializer(FunnyScriptParser.VariableInitializerContext ctx) {
+        if (ctx.expression() != null) {
+            at.typeOfNode.put(ctx, at.typeOfNode.get(ctx.expression()));
         }
     }
 
+    @Override
+    public void exitFunctionCall(FunnyScriptParser.FunctionCallContext ctx) {
+        if (ctx.THIS() != null) {
+            thisConstructorList.add(ctx);
+            return;
+        } else if (ctx.SUPER() != null) {
+            superConstructorList.add(ctx);
+            return;
+        }
 
+        // TODO 临时代码，支持println
+        if (ctx.IDENTIFIER().getText().equals("println")) {
+            return;
+        }
+
+        String idName = ctx.IDENTIFIER().getText();
+
+        List<Type> paramTypes = getParamTypes(ctx);
+
+        boolean found = false;
+
+        // .表达式调用类的方法
+        if (ctx.parent != null && ctx.parent instanceof FunnyScriptParser.ExpressionContext) {
+            FunnyScriptParser.ExpressionContext exp = (FunnyScriptParser.ExpressionContext) ctx.parent;
+            if (exp.bop != null && exp.bop.getType() == FunnyScriptParser.DOT) {
+                Symbol symbol = at.symbolOfNode.get(exp.expression(0));
+                if (symbol instanceof Variable && ((Variable) symbol).type instanceof Class) {
+                    Class theClass = (Class) ((Variable) symbol).type;
+                    Function function = theClass.getFunction(idName, paramTypes);
+                    if (function != null) {
+                        found = true;
+                        at.symbolOfNode.put(ctx, function);
+                        at.typeOfNode.put(ctx, function.getReturnType());
+                    } else {
+                        Variable funcVar = theClass.getFunctionVariable(idName, paramTypes);
+                        if (funcVar != null) {
+                            found = true;
+                            at.symbolOfNode.put(ctx, funcVar);
+                            at.typeOfNode.put(ctx, ((FunctionType) funcVar.type).getReturnType());
+                        } else {
+                            at.log("unable to find method " + idName + " in Class " + theClass.name, exp);
+                        }
+                    }
+                } else {
+                    at.log("unable to resolve a class", ctx);
+                }
+            }
+        }
+
+        Scope scope = at.enclosingScopeOfNode(ctx);
+
+        if (!found) {
+            Function function = at.lookupFunction(scope, idName, paramTypes);
+            if (function != null) {
+                found = true;
+                at.symbolOfNode.put(ctx, function);
+                at.typeOfNode.put(ctx, function.getReturnType());
+            }
+        }
+
+        if (!found) {
+            // 看看是不是类的构建函数，用相同的名称查找一个class
+            Class theClass = at.lookupClass(scope, idName);
+            if (theClass != null) {
+                Function function = theClass.findConstructor(paramTypes);
+                if (function != null) {
+                    at.symbolOfNode.put(ctx, function);
+
+                    // 如果是与类名相同的方法，并且没有参数，那么就是缺省构造方法
+                } else if (ctx.expressionList() == null) {
+                    at.symbolOfNode.put(ctx, theClass.defaultConstructor());
+                } else {
+                    at.log("unknown class constructor: " + ctx.getText(), ctx);
+                }
+                at.typeOfNode.put(ctx, theClass);
+            } else {
+                // 看看是不是一个函数型的变量
+                Variable variable = at.lookupFunctionVariable(scope, idName, paramTypes);
+                if (variable != null && variable.type instanceof FunctionType) {
+                    at.symbolOfNode.put(ctx, variable);
+                    at.typeOfNode.put(ctx, variable.type);
+                } else {
+                    at.log("unknown function or function variable: " + ctx.getText(), ctx);
+                }
+            }
+        }
+    }
+
+    /**
+     * 在结束扫描之前，把this()和super()构造函数消解掉
+     *
+     * @param ctx
+     */
+    @Override
+    public void exitProg(FunnyScriptParser.ProgContext ctx) {
+        for (FunnyScriptParser.FunctionCallContext fcc : thisConstructorList) {
+            resolveThisConstructorCall(fcc);
+        }
+
+        for (FunnyScriptParser.FunctionCallContext fcc : superConstructorList) {
+            resolveSuperConstructorCall(fcc);
+        }
+    }
+
+    /**
+     * this构造函数消解
+     *
+     * @param ctx
+     */
+    private void resolveThisConstructorCall(FunnyScriptParser.FunctionCallContext ctx) {
+        Class theClass = at.enclosingClassOfNode(ctx);
+        if (theClass != null) {
+            Function function = at.enclosingFunctionOfNode(ctx);
+            if (function != null && function.isConstructor()) {
+                // 检查是不是构造函数中的第一句
+                FunnyScriptParser.FunctionDeclarationContext fdx = (FunnyScriptParser.FunctionDeclarationContext) function.ctx;
+                if (!firstStatementInFunction(fdx, ctx)) {
+                    at.log("this() must be first statement in a constructor", ctx);
+                    return;
+                }
+
+                List<Type> paramTypes = getParamTypes(ctx);
+                Function referred = theClass.findConstructor(paramTypes);
+                if (referred != null) {
+                    at.symbolOfNode.put(ctx, referred);
+                    at.typeOfNode.put(ctx, theClass);
+                    at.thisConstructorRef.put(function, referred);
+                    // 默认构造函数
+                } else if (paramTypes.size() == 0) {
+                    at.symbolOfNode.put(ctx, theClass.defaultConstructor());
+                    at.typeOfNode.put(ctx, theClass);
+                    at.thisConstructorRef.put(function, theClass.defaultConstructor());
+                } else {
+                    at.log("can not find a constructor matches this()", ctx);
+                }
+            } else {
+                at.log("this() should only be called inside a class constructor", ctx);
+            }
+        } else {
+            at.log("this() should only be called inside a class", ctx);
+        }
+    }
+
+    /**
+     * super构造函数消解
+     * TODO 对于调用super()是有要求的，比如：
+     * (1)必须出现在构造函数的第一行，
+     * (2)this()和super不能同时出现，等等。
+     *
+     * @param ctx
+     */
+    private void resolveSuperConstructorCall(FunnyScriptParser.FunctionCallContext ctx) {
+        Class theClass = at.enclosingClassOfNode(ctx);
+        if (theClass != null) {
+            Function function = at.enclosingFunctionOfNode(ctx);
+            if (function != null && function.isConstructor()) {
+                Class parentClass = theClass.getParentClass();
+                if (parentClass != null) {
+                    //检查是不是构造函数中的第一句
+                    FunnyScriptParser.FunctionDeclarationContext fdx = (FunnyScriptParser.FunctionDeclarationContext) function.ctx;
+                    if (!firstStatementInFunction(fdx, ctx)) {
+                        at.log("super() must be first statement in a constructor", ctx);
+                        return;
+                    }
+
+                    List<Type> paramTypes = getParamTypes(ctx);
+                    Function referred = parentClass.findConstructor(paramTypes);
+                    if (referred != null) {
+                        at.symbolOfNode.put(ctx, referred);
+                        at.typeOfNode.put(ctx, theClass);
+                        at.superConstructorRef.put(function, referred);
+                    } else if (paramTypes.size() == 0) {
+                        //缺省构造函数
+                        at.symbolOfNode.put(ctx, parentClass.defaultConstructor());
+                        at.typeOfNode.put(ctx, theClass);
+                        at.superConstructorRef.put(function, theClass.defaultConstructor());
+                    } else {
+                        at.log("can not find a constructor matches this()", ctx);
+                    }
+                } else {
+                    //父类是最顶层的基类。
+                    // TODO 这里暂时不处理
+                }
+            } else {
+                at.log("super() should only be called inside a class constructor", ctx);
+            }
+        } else {
+            at.log("super() should only be called inside a class", ctx);
+        }
+    }
+
+    /**
+     * 是否是函数中的第一句
+     *
+     * @param fdx
+     * @param ctx
+     * @return
+     */
+    private boolean firstStatementInFunction(FunnyScriptParser.FunctionDeclarationContext fdx,
+                                             FunnyScriptParser.FunctionCallContext ctx) {
+        FunnyScriptParser.StatementContext statementContext =
+                fdx.functionBody().block().blockStatements().blockStatement(0).statement();
+        if (statementContext != null
+                && statementContext.expression() != null
+                && statementContext.expression().functionCall() == ctx) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 获得函数的参数列表
+     *
+     * @param ctx
+     * @return
+     */
+    private List<Type> getParamTypes(FunnyScriptParser.FunctionCallContext ctx) {
+        List<Type> paramTypes = new LinkedList<>();
+        if (ctx.expressionList() != null) {
+            for (FunnyScriptParser.ExpressionContext exp : ctx.expressionList().expression()) {
+                Type type = at.typeOfNode.get(exp);
+                paramTypes.add(type);
+            }
+        }
+        return paramTypes;
+    }
 }

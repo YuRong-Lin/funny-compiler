@@ -14,6 +14,7 @@ public class Function extends Scope implements FunctionType {
 
     protected Type returnType;
     protected List<Variable> parameters = new LinkedList<>();
+    private List<Type> paramTypes;
 
     protected Function(String name, Scope enclosingScope, ParserRuleContext ctx) {
         this.name = name;
@@ -27,24 +28,47 @@ public class Function extends Scope implements FunctionType {
     }
 
     /**
-     * TODO
+     * 参数类型列表
      *
      * @return
      */
     @Override
     public List<Type> getParamTypes() {
-        return null;
+        if (paramTypes == null) {
+            paramTypes = new LinkedList<>();
+        }
+
+        for (Variable param : parameters) {
+            paramTypes.add(param.type);
+        }
+
+        return paramTypes;
     }
 
     /**
-     * TODO
+     * 检查改函数是否匹配所需的参数。
      *
      * @param paramTypes
      * @return
      */
     @Override
     public boolean matchParameterTypes(List<Type> paramTypes) {
-        return false;
+        // 比较每个参数
+        if (parameters.size() != paramTypes.size()) {
+            return false;
+        }
+
+        boolean match = true;
+        for (int i = 0; i < paramTypes.size(); i++) {
+            Variable var = parameters.get(i);
+            Type type = paramTypes.get(i);
+            if (!var.type.isType(type)) {
+                match = false;
+                break;
+            }
+        }
+
+        return match;
     }
 
     /**
@@ -55,6 +79,27 @@ public class Function extends Scope implements FunctionType {
     public boolean isType(Type type) {
         if (type instanceof FunctionType) {
             return DefaultFunctionType.isType(this, (FunctionType) type);
+        }
+        return false;
+    }
+
+    /**
+     * 该函数是不是类的方法
+     *
+     * @return
+     */
+    public boolean isMethod() {
+        return enclosingScope instanceof Class;
+    }
+
+    /**
+     * 该函数是不是类的构建函数
+     *
+     * @return
+     */
+    public boolean isConstructor() {
+        if (enclosingScope instanceof Class) {
+            return enclosingScope.name.equals(name);
         }
         return false;
     }

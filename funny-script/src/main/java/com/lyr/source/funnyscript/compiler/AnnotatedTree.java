@@ -41,7 +41,13 @@ public class AnnotatedTree {
     // 用于做类型推断，每个节点推断出来的类型
     protected Map<ParserRuleContext, Type> typeOfNode = new HashMap<>();
 
-    //语义分析过程中生成的信息，包括普通信息、警告和错误
+    // 在构造函数里,引用的this()。第二个函数是被调用的构造函数
+    protected Map<Function, Function> thisConstructorRef = new HashMap<>();
+
+    // 在构造函数里,引用的super()。第二个函数是被调用的构造函数
+    protected Map<Function, Function> superConstructorRef = new HashMap<>();
+
+    // 语义分析过程中生成的信息，包括普通信息、警告和错误
     protected List<CompilationLog> logs = new LinkedList<>();
 
     /**
@@ -142,6 +148,40 @@ public class AnnotatedTree {
     }
 
     /**
+     * 通过方法的名称和方法签名查找Function。逐级Scope查找。
+     *
+     * @param scope
+     * @param idName
+     * @param paramTypes
+     * @return
+     */
+    protected Function lookupFunction(Scope scope, String idName, List<Type> paramTypes) {
+        Function rtn = scope.getFunction(idName, paramTypes);
+
+        if (rtn == null && scope.enclosingScope != null) {
+            rtn = lookupFunction(scope.enclosingScope, idName, paramTypes);
+        }
+        return rtn;
+    }
+
+    /**
+     * 查找函数型变量，逐级查找。
+     *
+     * @param scope
+     * @param idName
+     * @param paramTypes
+     * @return
+     */
+    protected Variable lookupFunctionVariable(Scope scope, String idName, List<Type> paramTypes) {
+        Variable rtn = scope.getFunctionVariable(idName, paramTypes);
+
+        if (rtn == null && scope.enclosingScope != null) {
+            rtn = lookupFunctionVariable(scope.enclosingScope, idName, paramTypes);
+        }
+        return rtn;
+    }
+
+    /**
      * 查找某节点所在的Scope
      * 算法：逐级查找父节点，找到一个对应着Scope的上级节点
      *
@@ -158,6 +198,20 @@ public class AnnotatedTree {
             }
         }
         return rtn;
+    }
+
+    /**
+     * 包含某节点的函数
+     *
+     * @param ctx
+     * @return
+     */
+    public Function enclosingFunctionOfNode(RuleContext ctx) {
+        if (ctx.parent instanceof FunnyScriptParser.FunctionDeclarationContext) {
+            return (Function) node2Scope.get(ctx.parent);
+        } else if (ctx.parent == null) {
+            return null;
+        } else return enclosingFunctionOfNode(ctx.parent);
     }
 
     /**

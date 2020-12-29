@@ -57,6 +57,10 @@ public class FunnyScriptCompiler {
         TypeChecker pass4 = new TypeChecker(at);
         walker.walk(pass4, at.ast);
 
+        // pass5: 其他语义检查
+        SemanticValidator pass5 = new SemanticValidator(at);
+        walker.walk(pass5, at.ast);
+
         //打印AST
         if (verbose || ast_dump) {
             dumpAST();

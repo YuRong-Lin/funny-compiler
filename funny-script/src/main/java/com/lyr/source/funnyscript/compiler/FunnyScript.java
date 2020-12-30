@@ -20,7 +20,7 @@ public class FunnyScript {
         // 脚本
         String script = null;
 
-        Map params = null;
+        Map params;
 
         // 解析参数
         try {

@@ -16,12 +16,10 @@ import java.util.Map;
  * @Version 1.0
  */
 public class FunnyScript {
-    private static final String LOCAL_TEST_PATH_PREFIX = "E:\\git-space-github\\funny-compiler\\funny-script\\src\\main\\java\\com\\lyr\\source\\funnyscript";
 
     public static void main(String[] args) {
         // 脚本
         String script = null;
-
         Map params;
 
         // 解析参数
@@ -41,7 +39,7 @@ public class FunnyScript {
         // 测试脚本路径
         String path = null;
         if (params.containsKey("test_path")) {
-            path = LOCAL_TEST_PATH_PREFIX + File.separator + params.get("test_path");
+            path = FunnyScript.class.getResource("../").getPath() + File.separator + params.get("test_path");
         }
 
         // 从源代码读取脚本

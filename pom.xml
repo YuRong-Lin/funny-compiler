@@ -15,7 +15,7 @@
     <packaging>pom</packaging>
 
     <name>funny-compiler</name>
-    <description>编译原理实践</description>
+    <description>编译原理实战</description>
 
     <modules>
         <module>funny-script</module>

@@ -1,6 +1,7 @@
 package com.lyr.source.funnyscript.compiler;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -15,6 +16,7 @@ import java.util.Map;
  * @Version 1.0
  */
 public class FunnyScript {
+    private static final String LOCAL_TEST_PATH_PREFIX = "E:\\git-space-github\\funny-compiler\\funny-script\\src\\main\\java\\com\\lyr\\source\\funnyscript";
 
     public static void main(String[] args) {
         // 脚本
@@ -36,10 +38,19 @@ public class FunnyScript {
             return;
         }
 
-        //从源代码读取脚本
+        // 测试脚本路径
+        String path = null;
+        if (params.containsKey("test_path")) {
+            path = LOCAL_TEST_PATH_PREFIX + File.separator + params.get("test_path");
+        }
+
+        // 从源代码读取脚本
         String scriptFile = params.containsKey("scriptFile") ? (String) params.get("scriptFile") : null;
         if (scriptFile != null) {
             try {
+                if (path != null) {
+                    scriptFile = path + File.separator + scriptFile;
+                }
                 script = readTextFile(scriptFile);
             } catch (IOException e) {
                 System.out.println("unable to read from : " + scriptFile);
@@ -85,8 +96,7 @@ public class FunnyScript {
             AnnotatedTree at = compiler.compile(script, verbose, ast_dump);
 
             if (!at.hasCompilationError()) {
-                Object result = compiler.execute(at);
-                System.out.println(result);
+                compiler.execute(at);
             }
         }
     }
@@ -136,6 +146,11 @@ public class FunnyScript {
                 }
             }
 
+            // 本地测试脚本的相对路径
+            else if (args[i].equals("-path")) {
+                params.put("test_path", args[++i]);
+            }
+
             //不认识的参数
             else if (args[i].startsWith("-")) {
                 throw new Exception("Unknown parameter : " + args[i]);
@@ -173,15 +188,15 @@ public class FunnyScript {
         System.out.println("\t>>enter REPL with verbose mode, dump ast and symbols");
         System.out.println();
 
-        System.out.println("\tjava compiler.FunnyScript scratch.play");
-        System.out.println("\t>>compile and execute scratch.play");
+        System.out.println("\tjava compiler.FunnyScript scratch.funny");
+        System.out.println("\t>>compile and execute scratch.funny");
         System.out.println();
 
-        System.out.println("\tjava compiler.FunnyScript -v scratch.play");
-        System.out.println("\t>>compile and execute scratch.play in verbose mode, dump ast and symbols");
+        System.out.println("\tjava compiler.FunnyScript -v scratch.funny");
+        System.out.println("\t>>compile and execute scratch.funny in verbose mode, dump ast and symbols");
         System.out.println();
 
-        System.out.println("\tjava compiler.FunnyScript -bc scratch.play");
+        System.out.println("\tjava compiler.FunnyScript -bc scratch.funny");
         System.out.println("\t>>compile to bytecode, save as DefaultPlayClass.class and run it");
         System.out.println();
     }

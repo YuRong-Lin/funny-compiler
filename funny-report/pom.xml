@@ -9,11 +9,11 @@
 	</parent>
 
 	<groupId>com.lyr.source</groupId>
-	<artifactId>funny-script</artifactId>
+	<artifactId>funny-report</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 
-	<name>funny-script</name>
-	<description>动手实现一门脚本语言</description>
+	<name>funny-report</name>
+	<description>实现一个报表引擎</description>
 
 	<properties>
 		<java.version>1.8</java.version>
@@ -24,6 +24,12 @@
 			<groupId>org.antlr</groupId>
 			<artifactId>antlr4</artifactId>
 		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>

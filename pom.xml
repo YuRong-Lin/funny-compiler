@@ -6,7 +6,6 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>2.3.4.RELEASE</version>
-        <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
     <groupId>com.lyr.source</groupId>
@@ -21,6 +20,7 @@
         <module>funny-script</module>
         <module>lab</module>
         <module>web</module>
+        <module>funny-report</module>
     </modules>
 
     <properties>
@@ -44,6 +44,11 @@
             <dependency>
                 <groupId>com.lyr.source</groupId>
                 <artifactId>lab</artifactId>
+                <version>${script.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.lyr.source</groupId>
+                <artifactId>funny-report</artifactId>
                 <version>${script.version}</version>
             </dependency>
             <dependency>

@@ -12,7 +12,7 @@
 java版本的脚本语言的一个实现。借助antlr工具生成词法和语法解析器，用java实现了语义分析、解释执行器。
 
 * 支持的类型：
-    + 基本类型：boolean、char、short、int、long、float、double、string基本类型；
+    + 基本类型：boolean、char、short、int、long、float、double、string；
     + class
     + function （函数作为一等公民）
 

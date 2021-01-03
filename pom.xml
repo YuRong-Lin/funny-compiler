@@ -21,6 +21,7 @@
         <module>lab</module>
         <module>web</module>
         <module>funny-report</module>
+        <module>front-end-algorithm</module>
     </modules>
 
     <properties>

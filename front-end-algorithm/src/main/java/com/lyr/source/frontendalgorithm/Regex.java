@@ -1,5 +1,13 @@
 package com.lyr.source.frontendalgorithm;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Stack;
+
 /**
  * @Author LinYuRong
  * @Date 2021/1/5 15:17
@@ -25,6 +33,45 @@ public class Regex {
         matchWithNFA(states[0], "intA");
         matchWithNFA(states[0], "23");
         matchWithNFA(states[0], "0A");
+
+
+        //转换成DFA
+        System.out.println("\nNFA to DFA:");
+        List<DFAState> dfaStates = NFA2DFA(states[0], CharSet.letterAndDigits);
+        dfaStates.get(0).dump();
+
+        //用DFA来匹配
+        matchWithDFA(dfaStates.get(0), "int");
+        matchWithDFA(dfaStates.get(0), "intA");
+        matchWithDFA(dfaStates.get(0), "23");
+        matchWithDFA(dfaStates.get(0), "0A");
+
+
+        ///////////////////
+        //第二个例子
+        //正则表达式：a[a-zA-Z0-9]*bc，也就是以a开头，bc结尾，中间可以是任何字母或数字
+
+        GrammarNode rootNode2 = sampleGrammar2();
+        rootNode2.dump();
+
+        System.out.println("\nNFA states:");
+        State[] states2 = regexToNFA(rootNode2);
+        states2[0].dump();
+
+        //用NFA来匹配
+        matchWithNFA(states2[0], "abc");
+        matchWithNFA(states2[0], "abcbbbcbc");
+        matchWithNFA(states2[0], "abde");
+
+        //转换成DFA
+        System.out.println("\nNFA to DFA:");
+        List<DFAState> dfaStates2 = NFA2DFA(states2[0], CharSet.letterAndDigits);
+        dfaStates2.get(0).dump();
+
+        //用DFA来匹配
+        matchWithDFA(dfaStates2.get(0), "abc");
+        matchWithDFA(dfaStates2.get(0), "abcbbbcbc");
+        matchWithDFA(dfaStates2.get(0), "abcb");
     }
 
     /**
@@ -102,6 +149,163 @@ public class Regex {
     }
 
     /**
+     * 把NFA转换成DFA
+     *
+     * @param startState 起始的NFA状态
+     * @param alphabet   该词法所采用的字符的集合
+     * @return
+     */
+    protected static List<DFAState> NFA2DFA(State startState, List<Character> alphabet) {
+        List<DFAState> dfaStates = new LinkedList<>();
+        List<DFAState> newStates = new LinkedList<>();
+
+        Map<State, Set<State>> calculatedClosures = new HashMap<>();
+
+        Set<State> stateSet = calcClosure(startState, calculatedClosures);
+        DFAState dfaState = new DFAState(stateSet);
+        dfaStates.add(dfaState);
+        newStates.add(dfaState);
+
+        // 每次循环，都会计算出一些新的StateSet来。
+        // 如果没有新的了，计算结束。
+        while (newStates.size() > 0) {
+            List<DFAState> calculating = newStates;
+            newStates = new LinkedList<>();
+
+            for (DFAState dfaState2 : calculating) {
+                // 为字母表中的每个字母循环
+                for (Character ch : alphabet) {
+                    Set<State> nextStateSet = move(dfaState2.states(), ch);
+                    if (nextStateSet.size() == 0) {
+                        continue;
+                    }
+
+                    calcClosure(nextStateSet, calculatedClosures);
+
+                    // 判断是否是一个新的状态
+                    dfaState = findDFAState(dfaStates, nextStateSet);
+                    Transition transition = null;
+                    if (dfaState == null) {
+                        dfaState = new DFAState(nextStateSet);
+                        dfaStates.add(dfaState);
+                        newStates.add(dfaState);
+                        transition = new CharTransition();
+                        dfaState2.addTransition(transition, dfaState);
+                    }
+
+                    // 复用已有的迁移
+                    if (transition == null) {
+                        transition = dfaState2.getTransitionTo(dfaState);
+                        if (transition == null) {
+                            transition = new CharTransition();
+                            dfaState2.addTransition(transition, dfaState);
+                        }
+                    }
+
+                    ((CharTransition) transition).condition.addSubSet(new CharSet(ch));
+                }
+            }
+        }
+
+        return dfaStates;
+    }
+
+    /**
+     * 根据NFA State集合，查找是否已经存在一个DFAState，包含同样的NFA状态集合
+     *
+     * @param dfaStates
+     * @param states
+     * @return
+     */
+    private static DFAState findDFAState(List<DFAState> dfaStates, Set<State> states) {
+        DFAState dfaState = null;
+        for (DFAState dfaState1 : dfaStates) {
+            if (sameStateSet(dfaState1.states(), states)) {
+                dfaState = dfaState1;
+                break;
+            }
+        }
+        return dfaState;
+    }
+
+    /**
+     * 比较两个NFA state的集合是否相等
+     *
+     * @param stateSet1
+     * @param stateSet2
+     * @return
+     */
+    private static boolean sameStateSet(Set<State> stateSet1, Set<State> stateSet2) {
+        if (stateSet1.size() != stateSet2.size()) {
+            return false;
+        } else {
+            return stateSet1.containsAll(stateSet2);
+        }
+    }
+
+    /**
+     * 计算从某个状态集合，在接收某个字符以后，会迁移到哪些新的集合
+     *
+     * @param states
+     * @param ch
+     * @return
+     */
+    private static Set<State> move(Set<State> states, Character ch) {
+        Set<State> rtn = new HashSet<>();
+        for (State state : states) {
+            for (Transition transition : state.transitions()) {
+                if (transition.match(ch)) {
+                    State nextState = state.getState(transition);
+                    rtn.add(nextState);
+                }
+            }
+        }
+        return rtn;
+    }
+
+    /**
+     * 计算某个state通过epsilon能到达的所有State
+     *
+     * @param state
+     * @param calculatedClosures
+     * @return
+     */
+    private static Set<State> calcClosure(State state, Map<State, Set<State>> calculatedClosures) {
+        if (calculatedClosures.keySet().contains(state)) {
+            return calculatedClosures.get(state);
+        }
+
+        Set<State> closure = new HashSet<>();
+        // 加上自身
+        closure.add(state);
+        for (Transition transition : state.transitions()) {
+            if (transition.isEpsilon()) {
+                State nextState = state.getState(transition);
+                closure.add(nextState);
+                closure.addAll(calcClosure(nextState, calculatedClosures));
+            }
+        }
+
+        calculatedClosures.put(state, closure);
+        return closure;
+    }
+
+    /**
+     * 计算一个状态集合的闭包，包括这些状态以及可以通过epsilon到达的状态。
+     *
+     * @param states
+     * @param calculatedClosures
+     */
+    private static void calcClosure(Set<State> states, Map<State, Set<State>> calculatedClosures) {
+        Set<State> newStates = new HashSet<>();
+        for (State state : states) {
+            Set<State> closure = calcClosure(state, calculatedClosures);
+            newStates.addAll(closure);
+        }
+        states.addAll(newStates);
+    }
+
+    /**
      * 看看str是否符合NFA
      *
      * @param state NFA的起始状态
@@ -156,6 +360,51 @@ public class Regex {
             }
         }
         return index2;
+    }
+
+    private static boolean matchWithDFA(DFAState state, String str) {
+        System.out.println("DFA matching: '" + str + "'");
+        char[] chars = str.toCharArray();
+        boolean match = matchWithDFA(state, chars, 0);
+
+        System.out.println("matched? : " + match + "\n");
+
+        return match;
+    }
+
+    /**
+     * 基于DFA做字符串匹配
+     *
+     * @param state
+     * @param chars
+     * @param index
+     * @return
+     */
+    private static boolean matchWithDFA(DFAState state, char[] chars, int index) {
+        System.out.println("trying DFAState : " + state.getName() + ", index =" + index);
+        DFAState nextState = null;
+        for (Transition transition : state.transitions()) {
+            if (transition.match(chars[index])) {
+                nextState = (DFAState) state.getState(transition);
+                break;
+            }
+        }
+
+        if (nextState != null) {
+            if (index < chars.length - 1) {
+                return matchWithDFA(nextState, chars, index + 1);
+            } else {
+                // 字符串已经匹配完毕
+                // 看看是否到达了接受状态
+                if (nextState.isAcceptable()) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            return false;
+        }
     }
 
     /**

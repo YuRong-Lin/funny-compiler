@@ -21,7 +21,7 @@ import java.util.Set;
 public class Lexer extends Regex {
 
     public static void main(String[] args) {
-        GrammarNode lexerGrammar = SampleLexerGrammar.commonLexerGrammar();
+        GrammarNode lexerGrammar = SampleGrammar.commonLexerGrammar();
         State[] nfaStates = regexToNFA(lexerGrammar);
         List<DFAState> dfaStates = NFA2DFA(nfaStates[0], CharSet.ascii);
 
@@ -38,6 +38,22 @@ public class Lexer extends Regex {
         for (Token token : tokens) {
             System.out.println(token);
         }
+    }
+
+    /**
+     * 把字符串解析成Token列表
+     *
+     * @param str
+     * @return
+     */
+    public static List<Token> tokenize(String str) {
+        GrammarNode lexerGrammar = SampleGrammar.commonLexerGrammar();
+        State[] nfaStates = regexToNFA(lexerGrammar);
+        List<DFAState> dfaStates = NFA2DFA(nfaStates[0], CharSet.ascii);
+        List<Token> tokens = tokenize(str, dfaStates.get(0), lexerGrammar);
+        // 加上结束符号
+        tokens.add(Token.EOF);
+        return tokens;
     }
 
     /**

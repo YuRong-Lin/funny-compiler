@@ -80,7 +80,7 @@ public class Regex {
      * @param node
      * @return
      */
-    public static State[] regexToNFA(GrammarNode node) {
+    protected static State[] regexToNFA(GrammarNode node) {
         State beginState = null;
         State endState = null;
 

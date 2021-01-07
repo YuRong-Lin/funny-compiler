@@ -451,7 +451,7 @@ public class GrammarNode {
      * @return
      */
     protected List<GrammarNode> getAllNodes() {
-        List<GrammarNode> allNodes = new LinkedList<GrammarNode>();
+        List<GrammarNode> allNodes = new LinkedList<>();
 
         getAllNodes(this, allNodes);
 

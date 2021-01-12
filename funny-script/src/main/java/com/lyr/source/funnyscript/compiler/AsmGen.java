@@ -172,6 +172,11 @@ public class AsmGen extends FunnyScriptBaseVisitor<String> {
     }
 
     @Override
+    public String visitProg(FunnyScriptParser.ProgContext ctx) {
+        return visitBlockStatements(ctx.blockStatements());
+    }
+
+    @Override
     public String visitFunctionBody(FunnyScriptParser.FunctionBodyContext ctx) {
         String value = null;
         if (ctx.block() != null) {
@@ -216,7 +221,22 @@ public class AsmGen extends FunnyScriptBaseVisitor<String> {
 
     @Override
     public String visitStatement(FunnyScriptParser.StatementContext ctx) {
-        return super.visitStatement(ctx);
+        String value = "";
+        if (ctx.statementExpression != null) {
+            value = visitExpression(ctx.statementExpression);
+        } else if (ctx.RETURN() != null) {
+            if (ctx.expression() != null) {
+                value = visitExpression(ctx.expression());
+                // 在%eax中设置返回值
+                bodyAsm.append("\n\t# 返回值\n");
+                if (value.equals("%eax")) {
+                    bodyAsm.append("\t# 返回值在之前的计算中,已经存入%eax\n");
+                } else {
+                    bodyAsm.append("\tmovl\t" + value + ", %eax\n");
+                }
+            }
+        }
+        return value;
     }
 
     @Override
@@ -299,7 +319,88 @@ public class AsmGen extends FunnyScriptBaseVisitor<String> {
 
     @Override
     public String visitFunctionCall(FunnyScriptParser.FunctionCallContext ctx) {
-        return super.visitFunctionCall(ctx);
+        String address = "%eax"; // 缺省获得返回值的地方
+
+        String functionName = null;
+
+        Symbol symbol = at.symbolOfNode.get(ctx);
+
+        if (symbol instanceof Function) {
+            Function function = (Function) symbol;
+            functionName = function.name;
+        } else {
+            // TODO 临时代码，用于打印输出
+            if (ctx.IDENTIFIER().getText().equals("println")) {
+                functionName = "printf";
+            } else {
+                at.log("unable to find function " + ctx.IDENTIFIER().getText(), ctx);
+            }
+        }
+
+        // 设置参数
+        if (ctx.expressionList() != null) {
+            int paramOffset = 0;
+            int numParams = ctx.expressionList().expression().size();
+
+            // 1. 先计算所有参数的值，这个时候可能会引起栈的变化，用来存放临时变量
+            int oldOffset = rspOffset;
+            List<String> values = new LinkedList<String>();
+            for (int i = 0; i < numParams; i++) {
+                values.add(visitExpression(ctx.expressionList().expression(i)));
+            }
+            int offset1 = rspOffset - oldOffset;
+
+            // 2.扩展栈
+            if (numParams > 6) {
+                paramOffset = 8 * (numParams - 6) + offset1;
+                bodyAsm.append("\n\t# 为参数而扩展栈\n");
+                bodyAsm.append("\tsubq\t$").append(paramOffset).append(", %rsp\n");
+            }
+
+            // 3.设置参数
+            if (numParams > 0) {
+                bodyAsm.append("\n\t# 设置参数\n");
+            }
+
+            for (int i = 0; i < numParams; i++) {
+                String value = values.get(i);
+                String paramAddress = "";
+                if (i < 6) {
+                    if (value.startsWith("ref:")) {
+                        paramAddress = paramRegisterq[i];
+                    } else {
+                        paramAddress = paramRegisterl[i];
+                    }
+                } else {
+                    if (i == 6) {
+                        paramAddress = "(%rsp)";
+                    } else {
+                        paramAddress = "" + ((i - 6) * 8) + "(%rsp)";
+                    }
+                }
+
+                if (value.startsWith("ref:")) {
+                    //传地址
+                    bodyAsm.append("\tleaq\t").append(value.substring(4)).append(", ").append(paramAddress).append("\n");
+                } else {
+                    bodyAsm.append("\tmovl\t").append(value).append(", ").append(paramAddress).append("\n");
+                }
+            }
+
+            // 4.调用函数
+            bodyAsm.append("\n\t# 调用函数\n");
+            bodyAsm.append("\tcallq\t_").append(functionName).append("\n");
+
+            // 5.恢复栈
+            if (numParams > 6) {
+                paramOffset = 8 * (numParams - 6);
+                bodyAsm.append("\n\t# 收回参数的栈空间\n");
+                bodyAsm.append("\taddq\t$").append(paramOffset).append(", %rsp\n");
+            }
+
+        }
+
+        return address;
     }
 
     @Override

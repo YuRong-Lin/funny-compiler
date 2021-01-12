@@ -78,6 +78,10 @@ public class FunnyScriptCompiler {
         return at;
     }
 
+    public AnnotatedTree compile(String script) {
+        return  compile(script,false, false);
+    }
+
     public Object execute(AnnotatedTree at) {
         ASTEvaluator visitor = new ASTEvaluator(at);
         Object result = visitor.visit(at.ast);

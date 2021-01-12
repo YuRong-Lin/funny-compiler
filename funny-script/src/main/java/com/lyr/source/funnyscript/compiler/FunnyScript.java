@@ -1,10 +1,6 @@
 package com.lyr.source.funnyscript.compiler;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -73,12 +69,12 @@ public class FunnyScript {
             REPL(verbose, ast_dump);
         }
 
-//        //生成汇编代码
-//        else if (genAsm) {
-//            //输出文件
-//            String outputFile = params.containsKey("outputFile") ? (String)params.get("outputFile") : null;
-//            generateAsm(script, outputFile);
-//        }
+        //生成汇编代码
+        else if (genAsm) {
+            //输出文件
+            String outputFile = params.containsKey("outputFile") ? (String) params.get("outputFile") : null;
+            generateAsm(script, outputFile);
+        }
 //
 //        //生成Java字节码
 //        else if (genByteCode) {
@@ -262,6 +258,52 @@ public class FunnyScript {
                 System.out.print("\n>");   //提示符
                 scriptLet = "";
             }
+        }
+    }
+
+    /**
+     * 生成ASM
+     *
+     * @param script     脚本
+     * @param outputFile 输出的文件名
+     */
+    private static void generateAsm(String script, String outputFile) {
+        FunnyScriptCompiler compiler = new FunnyScriptCompiler();
+        AnnotatedTree at = compiler.compile(script);
+        AsmGen asmGen = new AsmGen(at);
+        String asm = asmGen.generate();
+        if (outputFile != null) {
+            try {
+                writeTextFile(outputFile, asm);
+            } catch (IOException e) {
+                System.out.println("unable to write to : " + outputFile);
+                return;
+            }
+        } else {
+            System.out.println(asm);
+        }
+    }
+
+    /**
+     * 写文本文件
+     *
+     * @param pathName
+     * @param text
+     * @throws IOException
+     */
+    public static void writeTextFile(String pathName, String text) throws IOException {
+        File file = new File(pathName);
+        file.createNewFile();
+        try (FileWriter writer = new FileWriter(file);
+             BufferedWriter out = new BufferedWriter(writer)) {
+            StringReader reader = new StringReader(text);
+            BufferedReader br = new BufferedReader(reader);
+            String line;
+            while ((line = br.readLine()) != null) {
+                out.write(line);
+                out.newLine();
+            }
+            out.flush(); // 把缓存区内容压入文件
         }
     }
 }
